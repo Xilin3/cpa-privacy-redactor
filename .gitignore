@@ -1,0 +1,20 @@
+# Keep machine-specific state and credentials out of this repository.
+dist/
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+config.yaml
+config.yml
+*.log
+.build-*
+deployment*.json
+live-audit/
+live-work/
+release-assets/

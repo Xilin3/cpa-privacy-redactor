@@ -1,0 +1,8 @@
+# Merge this section into the existing CPA configuration.
+plugins:
+  enabled: true
+  dir: /path/to/cpa/plugins
+  configs:
+    privacy-redactor:
+      enabled: true
+      priority: -10000
