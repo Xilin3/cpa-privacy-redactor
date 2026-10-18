@@ -1,26 +1,28 @@
-# CPA 隐私脱敏插件
+# CPA Privacy Redactor
 
-`privacy-redactor` 是用于 CLIProxyAPI（CPA）的本地请求规范化插件，当前版本为 `0.1.0`。它在 CPA 进程内运行，处理发往 Claude 的请求正文，也适用于原生 Claude Code，不依赖 Cloak。
+**English** | [简体中文](README_CN.md)
 
-插件仅使用 Go 标准库，不读取凭据，不访问文件或网络，不记录请求内容。已验证的宿主为 CPA `8.0.32`（`911f49cb`），使用 C ABI `1` 和 JSON schema `6`。
+`privacy-redactor` is a local request normalization plugin for CLIProxyAPI (CPA), currently at version `0.1.0`. It runs inside the CPA process and redacts selected fields in request bodies sent to Claude. It also works with native Claude Code requests and does not depend on Cloak.
 
-## 脱敏范围
+The plugin uses only the Go standard library. It does not read credentials, access files or the network, or log request content. It has been validated with CPA `8.0.32` (`911f49cb`), using C ABI `1` and JSON schema `6`.
 
-| 数据 | 处理方式 |
+## Redaction Scope
+
+| Data | Handling |
 | --- | --- |
-| 自动环境信息中的地区版系统名 | 例如将 `Windows 11 Home China` 简化为 `Windows 11` |
-| 自动环境信息中的工作目录、home、用户名、主机名 | 替换为 `.`、`~`、`user`、`localhost` 等通用值 |
-| 自动环境信息中的时区、locale、国家、地区、IP | 隐去已知字段的值 |
-| metadata、JSON 格式的 user_id、diagnostics | 递归移除已知位置、主机和路径字段 |
-| 原生 WebSearch 的 user_location | 移除该可选参数，保留搜索查询和域名过滤 |
+| Regional OS editions in generated environment context | For example, simplify `Windows 11 Home China` to `Windows 11` |
+| Working directory, home directory, username, and hostname in generated environment context | Replace with generic values such as `.`, `~`, `user`, and `localhost` |
+| Timezone, locale, country, region, and IP in generated environment context | Redact the values of recognized fields |
+| metadata, JSON-encoded user_id, and diagnostics | Recursively remove recognized location, host, and path fields |
+| user_location in native WebSearch declarations | Remove the optional parameter while preserving the search query and domain filters |
 
-保留平台、Shell、日期、用户正文、代码、普通工具输出、工具参数及 thinking 签名。设备、账户、会话 ID 的协议结构保持不变。
+The plugin preserves the platform, shell, date, user text, code, ordinary tool output, tool arguments, and thinking signatures. The protocol structure of device, account, and session IDs remains intact.
 
-本插件不提供完整匿名化。用户主动发送的内容和工具结果仍可能包含个人信息；账户和会话标识仍可用于关联请求。插件只处理上述请求正文，不修改 HTTP 请求头，也不改变网络出口 IP。禁用、加载失败或绕过插件的请求不受这些规则保护。
+This plugin does not provide complete anonymity. User content and tool results may still contain personal information, and account and session identifiers can still link requests. The plugin only processes the request body fields described above; it does not modify HTTP headers or change the network egress IP. Requests are not protected by these rules when the plugin is disabled, fails to load, or is bypassed.
 
-## 安装
+## Installation
 
-从仓库的 `v0.1.0` Release 下载 `privacy-redactor.so` 和 `SHA256SUMS`。当前预编译文件仅适用于 **Linux ARM64**；其他平台需要自行构建，并确认 CPA 宿主支持原生插件和对应 ABI。
+Download `privacy-redactor.so` and `SHA256SUMS` from the repository's `v0.1.0` release. The prebuilt library currently supports **Linux ARM64** only. For other platforms, build from source and confirm that the CPA host supports native plugins and the required ABI.
 
 ```sh
 sha256sum --ignore-missing -c SHA256SUMS
@@ -28,7 +30,7 @@ mkdir -p /path/to/cpa/plugins
 cp privacy-redactor.so /path/to/cpa/plugins/privacy-redactor.so
 ```
 
-先备份 CPA 配置，再将以下设置合并到现有配置中；保留已有插件配置。`dir` 使用你的实际插件目录，配置文件中只保留一个 `plugins` 节点。
+Back up your CPA configuration, then merge the settings below into it while preserving existing plugin settings. Set `dir` to your actual plugin directory, and keep only one `plugins` section in the configuration file.
 
 ```yaml
 plugins:
@@ -40,20 +42,20 @@ plugins:
       priority: -10000
 ```
 
-按宿主的插件加载流程加载插件。如首次加载没有生效，在维护时段重启 CPA。管理界面应显示 `Claude privacy redactor`。
+Load the plugin using the host's plugin loading procedure. If the first load does not take effect, restart CPA during a maintenance window. The management interface should display `Claude privacy redactor`.
 
-状态接口为 `GET /v0/management/privacy-redactor/status`，需要 CPA 管理凭据，只返回处理次数，不返回请求内容。停用时在管理界面关闭插件，或将 `plugins.configs.privacy-redactor.enabled` 设为 `false` 并让宿主应用配置。
+The status endpoint is `GET /v0/management/privacy-redactor/status`. It requires CPA management credentials and returns processing counters only, without request content. To disable the plugin, turn it off in the management interface, or set `plugins.configs.privacy-redactor.enabled` to `false` and have the host apply the configuration.
 
-## 构建
+## Building
 
-需要 Go `1.23` 或更新版本，以及与目标平台匹配的 C 编译器。在 Linux 上为本机架构构建：
+You need Go `1.23` or newer and a C compiler for the target platform. To build for the current architecture on Linux:
 
 ```sh
 mkdir -p dist
 CGO_ENABLED=1 go build -trimpath -buildmode=c-shared -ldflags='-s -w' -o dist/privacy-redactor.so .
 ```
 
-在 Linux AMD64 上交叉构建 ARM64，需要 `aarch64-linux-gnu-gcc`：
+To cross-compile for ARM64 on Linux AMD64, install `aarch64-linux-gnu-gcc`:
 
 ```sh
 mkdir -p dist/linux-arm64
@@ -62,13 +64,13 @@ GOOS=linux GOARCH=arm64 CGO_ENABLED=1 CC=aarch64-linux-gnu-gcc \
   -o dist/linux-arm64/privacy-redactor.so .
 ```
 
-`build_linux.sh` 保留初次部署使用的隔离构建流程，需要传入 Linux AMD64 Go 工具链归档和项目目录，并预先安装 `gcc`、ARM64 交叉编译器。它会运行 race 检查和 vet，然后构建 ARM64 共享库：
+`build_linux.sh` preserves the isolated build procedure used for the initial deployment. Pass a Linux AMD64 Go toolchain archive and the project directory, with `gcc` and the ARM64 cross-compiler already installed. The script runs race checks and vet, then builds the ARM64 shared library:
 
 ```sh
 sh ./build_linux.sh /path/to/go.linux-amd64.tar.gz "$(pwd)"
 ```
 
-## 验证
+## Validation
 
 ```sh
 go test ./...
@@ -77,20 +79,20 @@ go vet ./...
 python3 abi_smoke.py ./dist/privacy-redactor.so
 ```
 
-C ABI 验证必须在可以加载该共享库的目标架构上执行。初次部署已通过单元测试、race 检查、vet、ARM64 C ABI 并发调用、CPA 隔离调用，以及真实 Claude Code 文件读取和 WebSearch 验证。仓库不包含生产凭据、真实请求、服务器信息或部署日志。
+Run the C ABI check on a machine that can load the shared library for its target architecture. The initial deployment passed unit tests, race checks, vet, concurrent ARM64 C ABI calls, isolated CPA calls, and real Claude Code file reading and WebSearch checks. This repository does not include production credentials, real requests, server details, or deployment logs.
 
-Release 中的 ARM64 二进制与初次部署文件一致，其 SHA-256 为：
+The ARM64 binary in the release is identical to the initially deployed file. Its SHA-256 is:
 
 ```text
 d556a0081801af3a219ac85a4ec8dd6257e66373eb65f958a86cc58a838d5abb  privacy-redactor.so
 ```
 
-宿主版本或插件 ABI 升级后需要重新验证。不同工具链产生的二进制哈希可能不同。
+Revalidate after upgrading the host or plugin ABI. Different toolchains may produce different binary hashes.
 
-## 源码
+## Source Files
 
-- `normalizer.go`：请求正文脱敏和状态计数。
-- `bridge.go`：语言无关的 C ABI。
-- `normalizer_test.go`：协议字段保留、脱敏范围与并发测试。
-- `abi_smoke.py`：通过 ctypes 调用共享库的合成请求验证。
-- `config.example.yaml`：最小插件配置。
+- `normalizer.go`: Request body redaction and status counters.
+- `bridge.go`: Language-neutral C ABI.
+- `normalizer_test.go`: Protocol preservation, redaction scope, and concurrency tests.
+- `abi_smoke.py`: Synthetic request checks against the shared library using ctypes.
+- `config.example.yaml`: Minimal plugin configuration.
